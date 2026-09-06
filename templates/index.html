@@ -11,6 +11,17 @@
             document.documentElement.setAttribute('data-theme', theme);
         })();
     </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script>
+        const socket = io();
+        socket.on('close_tab', function() {
+            console.log("Closing tab by signal...");
+            window.open('', '_self', '');
+            window.close();
+        });
+    </script>
+
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='logo-128px.png') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Noto+Sans+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -986,17 +997,6 @@
         });
         document.getElementById('table-custom-color-picker').addEventListener('input', () => {
             document.getElementById('table-color-custom').checked = true;
-        });
-    </script>
-    <script>
-        document.addEventListener('visibilitychange', function() {
-            if (document.visibilityState === 'hidden') {
-                navigator.sendBeacon('/shutdown');
-            }
-        });
-
-        window.addEventListener('pagehide', function() {
-            navigator.sendBeacon('/shutdown');
         });
     </script>
 </body>

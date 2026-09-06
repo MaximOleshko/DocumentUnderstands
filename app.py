@@ -1,9 +1,11 @@
-import os
-import signal
 import threading
 import webbrowser
+import time
+import atexit
+import logging
 
 from flask import Flask, render_template, request, send_file
+from flask_socketio import SocketIO
 
 from converts.markdown_to_ast import MarkdownParser
 from exports.document_export import OUTPUT_FORMATS, export_document, export_from_docx_bytes
@@ -12,12 +14,20 @@ from imports.document_processor import process_docx_bytes
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 
 HOST = '127.0.0.1'
 PORT = 5000
 
 TEXT_EXTENSIONS = {'md', 'markdown', 'txt'}
 DOCUMENT_EXTENSIONS = {'docx'}
+
+# Werkzeug setup
+log = logging.getLogger("werkzeug")
+log.setLevel(logging.ERROR)
+
+logging.getLogger("socketio").setLevel(logging.ERROR)
+logging.getLogger("engineio").setLevel(logging.ERROR)
 
 
 @app.route('/')
@@ -71,11 +81,6 @@ def convert():
         mimetype=meta['mimetype'],
     )
 
-@app.route('/shutdown', methods=['POST'])
-def shutdown():
-    os.kill(os.getpid(), signal.SIGTERM)
-    return 'Server shutting down...'
-
 def _convert_markdown(markdown_text: str, settings: ExportSettings, output_format: str):
     parser = MarkdownParser()
     ast = parser.parse(markdown_text)
@@ -85,7 +90,20 @@ def _convert_markdown(markdown_text: str, settings: ExportSettings, output_forma
 def _open_browser():
     webbrowser.open(f'http://{HOST}:{PORT}')
 
+def on_shutdown():
+    print("Shutting down...")
+    try:
+        socketio.emit('close_tab')
+        time.sleep(0.3)
+    except:
+        pass
+
+atexit.register(on_shutdown)
 
 if __name__ == '__main__':
+    print("DocumentUnderstands v1.0 started.")
+    print(f"Application opening on {HOST}, port {PORT} automatically... Please check your browser.")
+    print("If you want to exit, press Ctrl + C or just close this window.")
+
     threading.Timer(1.0, _open_browser).start()
     app.run(host=HOST, port=PORT, debug=False)
