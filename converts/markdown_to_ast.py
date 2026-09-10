@@ -1,5 +1,4 @@
 import re
-from typing import List, Optional, Tuple
 from converts.ast_nodes import *
 
 
@@ -9,8 +8,8 @@ def _merge_text_nodes(nodes: List[ASTNode]) -> List[ASTNode]:
         if isinstance(node, Text) and merged and isinstance(merged[-1], Text):
             merged[-1].value += node.value
         else:
-            merged.append(node)   # накапливаем, а не возвращаем
-    return merged                 # возвращаем весь список
+            merged.append(node)   # appending
+    return merged                 # return whole list
 
 
 class MarkdownParser:
@@ -19,8 +18,9 @@ class MarkdownParser:
         self.current_pos = 0
 
     def parse(self, markdown: str) -> Document:
-        """Парсит markdown текст и возвращает AST"""
-        self.lines = markdown.split('\n')
+        markdown = markdown.replace('\r\n', '\n').replace('\r', '\n')
+        markdown = markdown.replace('\u00a0', ' ')
+        self.lines = [line.rstrip() for line in markdown.split('\n')]
         self.current_pos = 0
 
         children = []
@@ -32,29 +32,26 @@ class MarkdownParser:
         return Document(children=children)
 
     def _current_line(self) -> str:
-        """Получает текущую строку"""
         if self.current_pos < len(self.lines):
             return self.lines[self.current_pos]
         return ''
 
     def _peek_line(self, offset: int = 1) -> str:
-        """Смотрит на строку на offset позиций вперед"""
+        # Looking for offset position forward
         pos = self.current_pos + offset
         if pos < len(self.lines):
             return self.lines[pos]
         return ''
 
     def _advance(self, count: int = 1):
-        """Переходит на следующую строку"""
+        # Next string
         self.current_pos += count
 
     def _skip_empty_lines(self):
-        """Пропускает пустые строки"""
         while self.current_pos < len(self.lines) and not self._current_line().strip():
             self._advance()
 
     def _is_table_separator(self, line: str) -> bool:
-        """Проверяет, является ли строка разделителем таблицы (|---|, |:---|, etc.)"""
         stripped = line.strip()
         if not stripped or '|' not in stripped or '-' not in stripped:
             return False
@@ -62,14 +59,12 @@ class MarkdownParser:
         return bool(cells) and all(re.fullmatch(r':?-+:?', cell) for cell in cells)
 
     def _looks_like_table(self) -> bool:
-        """Проверяет, начинается ли текущая позиция с таблицы"""
         line = self._current_line()
         if '|' not in line:
             return False
         return self._is_table_separator(self._peek_line())
 
     def _parse_block(self) -> None | Heading | CodeBlock | HorizontalRule | list | BlockQuote | Table | Paragraph:
-        """Парсит блочный элемент"""
         self._skip_empty_lines()
 
         if self.current_pos >= len(self.lines):
@@ -77,39 +72,39 @@ class MarkdownParser:
 
         line = self._current_line()
 
-        # Заголовок
+        # Header
         if match := re.match(r'^(#{1,6})\s+(.+)$', line):
             level = len(match.group(1))
-            content = match.group(2)
+            content = match.group(2).strip()
             self._advance()
             return Heading(level=level, content=self._parse_inline(content))
 
-        # Блок кода
+        # Code block
         if line.startswith('```'):
             return self._parse_code_block()
 
-        # Горизонтальная линия
+        # Horizontal line
         if re.match(r'^(---+|___+|\*\*\*+)\s*$', line):
             self._advance()
             return HorizontalRule()
 
-        # Маркированный список
+        # Bulleted list
         if line.startswith('- ') or line.startswith('* '):
             return self._parse_list(ordered=False)
 
-        # Нумерованный список
+        # Numbered list
         if re.match(r'^\d+\.\s', line):
             return self._parse_list(ordered=True)
 
-        # Цитата
+        # Quote
         if line.startswith('>'):
             return self._parse_blockquote()
 
-        # Таблица
+        # Table
         if self._looks_like_table():
             return self._parse_table()
 
-        # Обычный параграф
+        # Simple paragraph
         if line.strip():
             return self._parse_paragraph()
 
@@ -117,12 +112,10 @@ class MarkdownParser:
         return None
 
     def _parse_paragraph(self) -> Paragraph | None:
-        """Парсит параграф"""
         lines = []
         while self.current_pos < len(self.lines):
             line = self._current_line()
 
-            # Проверяем, не начинается ли новый блок
             if not line.strip():
                 break
             if re.match(r'^(#{1,6})\s+', line):
@@ -137,35 +130,34 @@ class MarkdownParser:
                 break
             if line.startswith('>'):
                 break
-            if '|' in line:
+
+            if '|' in line and self._looks_like_table():
                 break
 
             lines.append(line)
             self._advance()
 
         if not lines:
-            # Строка не подошла для параграфа (например, таблица) — пропускаем,
-            # чтобы избежать бесконечного цикла
             self._advance()
             return None
 
         content_text = ' '.join(lines)
+        content_text = re.sub(r' {2,}', ' ', content_text).strip()
         return Paragraph(content=self._parse_inline(content_text))
 
     def _parse_inline(self, text: str) -> List[ASTNode]:
-        """Парсит инлайн элементы (жирный, курсив, код, ссылки)"""
         nodes = []
         pos = 0
 
         while pos < len(text):
-            # Жирный текст **text**
+            # Bold text **text**
             if match := re.match(r'\*\*(.+?)\*\*', text[pos:]):
                 content = self._parse_inline(match.group(1))
                 nodes.append(Bold(content=content))
                 pos += len(match.group(0))
                 continue
 
-            # Жирный текст __text__
+            # Bold text __text__
             if match := re.match(r'__(.+?)__', text[pos:]):
                 content = self._parse_inline(match.group(1))
                 nodes.append(Bold(content=content))
@@ -179,33 +171,33 @@ class MarkdownParser:
                 pos += len(match.group(0))
                 continue
 
-            # Курсив _text_
+            # Italic _text_
             if match := re.match(r'_(.+?)_', text[pos:]):
                 content = self._parse_inline(match.group(1))
                 nodes.append(Italic(content=content))
                 pos += len(match.group(0))
                 continue
 
-            # Встроенный код `code`
+            # `code` block
             if match := re.match(r'`(.+?)`', text[pos:]):
                 nodes.append(Code(value=match.group(1)))
                 pos += len(match.group(0))
                 continue
 
-            # Ссылка [text](url)
+            # Link [text](url)
             if match := re.match(r'\[(.+?)\]\((.+?)\)', text[pos:]):
                 link_text = self._parse_inline(match.group(1))
                 nodes.append(Link(text=link_text, url=match.group(2)))
                 pos += len(match.group(0))
                 continue
 
-            # Изображение ![alt](url)
+            # Image ![alt](url)
             if match := re.match(r'!\[(.+?)\]\((.+?)\)', text[pos:]):
                 nodes.append(Image(alt=match.group(1), url=match.group(2)))
                 pos += len(match.group(0))
                 continue
 
-            # Обычный текст
+            # Simple text
             match = re.match(r'[^*_`\[\]!]+', text[pos:])
             if match:
                 nodes.append(Text(value=match.group(0)))
@@ -214,18 +206,14 @@ class MarkdownParser:
                 nodes.append(Text(value=text[pos]))
                 pos += 1
 
-        # Объединяем соседние Text узлы
+        # Merge near Text nodes
         return _merge_text_nodes(nodes)
 
     def _parse_code_block(self) -> CodeBlock:
-        """Парсит блок кода"""
         line = self._current_line()
-
-        # Определяем язык программирования
         language = None
         if match := re.match(r'^```(\w+)?', line):
             language = match.group(1)
-
         self._advance()
 
         code_lines = []
@@ -241,7 +229,6 @@ class MarkdownParser:
         return CodeBlock(language=language, code=code)
 
     def _parse_list(self, ordered: bool) -> List:
-        """Парсит список (маркированный или нумерованный)"""
         items = []
 
         while self.current_pos < len(self.lines):
@@ -267,7 +254,6 @@ class MarkdownParser:
         return List(ordered=ordered, items=items)
 
     def _parse_blockquote(self) -> BlockQuote:
-        """Парсит цитату"""
         quote_lines = []
 
         while self.current_pos < len(self.lines):
@@ -276,12 +262,12 @@ class MarkdownParser:
             if not line.startswith('>'):
                 break
 
-            # Убираем префикс ">" (с опциональным пробелом)
+            # Remove prefix ">" (with optional space)
             quote_text = line[1:].lstrip(' ')
             quote_lines.append(quote_text)
             self._advance()
 
-        # Парсим содержимое цитаты как отдельный документ
+        # Parse quote
         quote_content = '\n'.join(quote_lines)
         parser = MarkdownParser()
         doc = parser.parse(quote_content)
@@ -289,26 +275,22 @@ class MarkdownParser:
         return BlockQuote(content=doc.children)
 
     def _parse_table(self) -> Table:
-        """Парсит таблицу"""
-        # Получаем заголовок
         header_line = self._current_line()
         header = [cell.strip() for cell in header_line.split('|')[1:-1]]
         self._advance()
 
-        # Пропускаем разделитель
+        separator_line = self._current_line()
+        if not self._is_table_separator(separator_line):
+            return None
+
         self._advance()
 
-        # Парсим строки
         rows = []
         while self.current_pos < len(self.lines):
             line = self._current_line()
-
-            if not line.strip() or not '|' in line:
+            if not line.strip() or '|' not in line:
                 break
-
             cells = [cell.strip() for cell in line.split('|')[1:-1]]
-
-            # Парсим инлайн элементы в каждой ячейке
             parsed_cells = [self._parse_inline(cell) for cell in cells]
             rows.append(parsed_cells)
             self._advance()

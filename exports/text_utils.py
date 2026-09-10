@@ -1,6 +1,6 @@
 import re
 
-# Основные диапазоны Unicode для эмодзи и символов вроде ✅ ❌
+# Unicode for Emojis, symbols, etc.
 EMOJI_PATTERN = re.compile(
     "["
     "\U0001F1E0-\U0001F1FF"

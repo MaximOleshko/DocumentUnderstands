@@ -2,10 +2,8 @@
 
 import docx
 from docx.shared import Pt, RGBColor, Inches
-from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
-from typing import List, Optional
 
 from converts.ast_nodes import *
 from exports.settings import ExportSettings
@@ -14,22 +12,19 @@ from exports.docx_spaces import add_run_preserved, preserve_run_spaces
 
 
 class ExportToDocx:
-    """Экспортер AST в DOCX формат"""
 
     def __init__(self, settings: Optional[ExportSettings] = None):
         self.settings = settings or ExportSettings()
         self.doc = docx.Document()
-        self.list_stack = []  # Стек для отслеживания вложенных списков
+        self.list_stack = []  # Stack for tracking nested lists
 
     def export(self, ast: Document) -> Document:
-        """Экспортирует AST в DOCX документ"""
         for node in ast.children:
             self._export_node(node)
 
         return self.doc
 
     def _export_node(self, node: ASTNode):
-        """Экспортирует отдельный узел AST"""
         if isinstance(node, Heading):
             self._export_heading(node)
         elif isinstance(node, Paragraph):
@@ -47,17 +42,14 @@ class ExportToDocx:
             self._export_table(node)
 
     def _export_heading(self, node: Heading):
-        """Экспортирует заголовок"""
         heading = self.doc.add_heading('', level=node.level)
         self._fill_paragraph_with_inline(heading, node.content)
 
     def _export_paragraph(self, node: Paragraph):
-        """Экспортирует параграф"""
         paragraph = self.doc.add_paragraph()
         self._fill_paragraph_with_inline(paragraph, node.content)
 
     def _export_code_block(self, node: CodeBlock):
-        """Экспортирует блок кода"""
         lines = node.code.split('\n')
         if not lines:
             lines = ['']
@@ -80,7 +72,6 @@ class ExportToDocx:
                 paragraph.paragraph_format.space_after = Pt(2)
 
     def _export_list(self, node: List):
-        """Экспортирует список"""
         for item in node.items:
             if node.ordered:
                 paragraph = self.doc.add_paragraph(style='List Number')
@@ -90,7 +81,6 @@ class ExportToDocx:
             self._fill_paragraph_with_inline(paragraph, item.content)
 
     def _export_blockquote(self, node: BlockQuote):
-        """Экспортирует цитату"""
         if self.settings.strip_blockquotes:
             for child in node.content:
                 self._export_node(child)
@@ -98,25 +88,24 @@ class ExportToDocx:
 
         for child in node.content:
             self._export_node(child)
-            # Применяем стиль цитаты к последнему параграфу
+            # Accepting quote style for the last paragraph
             if self.doc.paragraphs:
                 last_paragraph = self.doc.paragraphs[-1]
                 last_paragraph.paragraph_format.left_indent = Inches(0.5)
                 last_paragraph.paragraph_format.right_indent = Inches(0.5)
 
-                # Добавляем левую границу
+                # Adding left border
                 self._set_paragraph_border(last_paragraph, left_color='4472C4', left_width=24)
 
-                # Серый фон
+                # Gray background
                 self._set_paragraph_background(last_paragraph, 'F2F2F2')
 
     def _export_horizontal_rule(self):
-        """Экспортирует горизонтальную линию"""
         paragraph = self.doc.add_paragraph()
         paragraph.paragraph_format.space_before = Pt(6)
         paragraph.paragraph_format.space_after = Pt(6)
 
-        # Добавляем горизонтальную линию через границу параграфа
+        # Adding a horizontal line through the paragraph's border
         pPr = paragraph._element.get_or_add_pPr()
         pBdr = OxmlElement('w:pBdr')
         bottom = OxmlElement('w:bottom')
@@ -128,17 +117,14 @@ class ExportToDocx:
         pPr.append(pBdr)
 
     def _export_table(self, node: Table):
-        """Экспортирует таблицу"""
         if self.settings.table_mode == 'word_native':
             self._export_table_word_native(node)
         else:
             self._export_table_styled(node)
 
     def _export_table_styled(self, node: Table):
-        """Таблица со стилями конвертера (форматирование в ячейках)"""
         num_cols = len(node.header)
         num_rows = len(node.rows) + 1
-
         table = self.doc.add_table(rows=num_rows, cols=num_cols)
         table.style = 'Light Grid Accent 1'
 
@@ -157,13 +143,15 @@ class ExportToDocx:
         for row_idx, row_data in enumerate(node.rows, start=1):
             row_cells = table.rows[row_idx].cells
             for col_idx, cell_content in enumerate(row_data):
+                # Checking borders
+                if col_idx >= num_cols:
+                    break
                 cell = row_cells[col_idx]
                 cell.text = ''
                 paragraph = cell.paragraphs[0]
                 self._fill_paragraph_with_inline(paragraph, cell_content, in_table=True)
 
     def _export_table_word_native(self, node: Table):
-        """Word-совместимая таблица с явными границами и простым текстом"""
         num_cols = max(len(node.header), 1)
         num_rows = len(node.rows) + 1
 
@@ -191,7 +179,6 @@ class ExportToDocx:
         self._apply_run_style(run, in_table=True)
 
     def _set_table_borders(self, table):
-        """Задаёт явные границы таблицы для совместимости с Word"""
         tbl = table._tbl
         tbl_pr = tbl.tblPr
         if tbl_pr is None:
@@ -214,7 +201,6 @@ class ExportToDocx:
         inline_nodes: List[ASTNode],
         in_table: bool = False,
     ):
-        """Заполняет параграф инлайн элементами"""
         for run in list(paragraph.runs):
             run._element.getparent().remove(run._element)
 
@@ -239,7 +225,6 @@ class ExportToDocx:
         italic: bool = False,
         in_table: bool = False,
     ):
-        """Добавляет инлайн элементы с поддержкой вложенного форматирования"""
         effective_bold = bold and not self.settings.strip_bold
         effective_italic = italic and not self.settings.strip_italic
 
@@ -275,12 +260,10 @@ class ExportToDocx:
                     self._add_inline_nodes(
                         paragraph,
                         [Text(value=self._clean_text(node.value))],
-                        bold=bold,
-                        italic=italic,
-                        in_table=in_table,
+                        bold=bold, italic=italic, in_table=in_table,
                     )
                 else:
-                    run = add_run_preserved(paragraph, node.value)
+                    run = add_run_preserved(paragraph, self._clean_text(node.value))  # ← Добавлен _clean_text
                     run.font.name = 'Courier New'
                     run.font.size = Pt(10)
                     run.font.color.rgb = RGBColor(200, 0, 0)
@@ -298,30 +281,33 @@ class ExportToDocx:
                     self._apply_run_style(run, in_table=in_table)
 
     def _add_hyperlink(self, paragraph, url: str, text_nodes: List[ASTNode]):
-        """Добавляет гиперссылку в параграф"""
-        part = paragraph.part
-        rel_id = part.relate_to(url,
-                                'http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink',
-                                is_external=True)
+        try:
+            part = paragraph.part
+            rel_id = part.relate_to(
+                url,
+                'http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink',
+                is_external=True
+            )
 
-        # Создаем элемент ссылки
-        r = OxmlElement('w:r')
-        hyperlink = OxmlElement('w:hyperlink')
-        hyperlink.set(qn('r:id'), rel_id)
+            r = OxmlElement('w:r')
+            hyperlink = OxmlElement('w:hyperlink')
+            hyperlink.set(qn('r:id'), rel_id)
 
-        # Добавляем текст ссылки
-        run_element = OxmlElement('w:r')
-        text_content = self._clean_text(self._extract_text(text_nodes))
-        t = OxmlElement('w:t')
-        t.set(qn('xml:space'), 'preserve')
-        t.text = text_content
-        run_element.append(t)
-
-        hyperlink.append(run_element)
-        paragraph._element.append(hyperlink)
+            run_element = OxmlElement('w:r')
+            text_content = self._clean_text(self._extract_text(text_nodes))
+            t = OxmlElement('w:t')
+            t.set(qn('xml:space'), 'preserve')
+            t.text = text_content
+            run_element.append(t)
+            hyperlink.append(run_element)
+            paragraph._element.append(hyperlink)
+        except Exception:
+            # If creating a link fails, add it as text
+            text_content = self._clean_text(self._extract_text(text_nodes))
+            run = add_run_preserved(paragraph, f"{text_content} ({url})")
+            self._apply_run_style(run)
 
     def _extract_text(self, nodes: List[ASTNode]) -> str:
-        """Экстрагирует текст из инлайн узлов"""
         text = ''
         for node in nodes:
             if isinstance(node, Text):
@@ -332,13 +318,11 @@ class ExportToDocx:
         return text
 
     def _set_paragraph_background(self, paragraph, color: str):
-        """Устанавливает цвет фона параграфа"""
         shading_elm = OxmlElement('w:shd')
         shading_elm.set(qn('w:fill'), color)
         paragraph._element.get_or_add_pPr().append(shading_elm)
 
     def _set_paragraph_border(self, paragraph, left_color: str = None, left_width: int = 12):
-        """Устанавливает левую границу параграфа"""
         pPr = paragraph._element.get_or_add_pPr()
         pBdr = OxmlElement('w:pBdr')
 
@@ -352,5 +336,4 @@ class ExportToDocx:
         pPr.append(pBdr)
 
     def save(self, filename: str):
-        """Сохраняет документ в файл"""
         self.doc.save(filename)

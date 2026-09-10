@@ -4,32 +4,51 @@ from typing import Optional
 
 import docx
 from docx.oxml.ns import qn
+from docx.table import Table as DocxTable
 from docx.text.paragraph import Paragraph
 from docx.text.run import Run
 
 from exports.settings import ExportSettings
-from exports.text_utils import remove_emojis
 
 NEAR_WHITE_THRESHOLD = 240
 TINY_SIZE_PT = 2.0
 SMALL_RELATIVE_RATIO = 0.4
+
 HIDDEN_COLOR_VALUES = {
     'FFFFFF', 'FEFEFE', 'FDFDFD', 'FCFCFC', 'FAFAFA', 'F8F8F8',
     'F7F7F7', 'F5F5F5', 'F0F0F0',
 }
 
+# Extract Markdown from .docx
 
-def process_docx_bytes(data: bytes, settings: ExportSettings) -> BytesIO:
+def extract_markdown_from_docx(data: bytes, settings: ExportSettings) -> str:
     document = docx.Document(BytesIO(data))
+
     if settings.strip_hidden_text:
         _strip_hidden_content(document)
-    if settings.strip_emojis:
-        _strip_emojis_from_document(document)
 
-    buffer = BytesIO()
-    document.save(buffer)
-    buffer.seek(0)
-    return buffer
+    lines = []
+    for child in document.element.body.iterchildren():
+        if child.tag == qn('w:p'):
+            lines.append(Paragraph(child, document).text)
+        elif child.tag == qn('w:tbl'):
+            lines.append(_table_to_markdown(DocxTable(child, document)))
+            lines.append('')
+    return '\n'.join(lines)
+
+
+def _table_to_markdown(table) -> str:
+    rows = []
+    for row in table.rows:
+        cells = [
+            cell.text.strip().replace('|', '\\|').replace('\n', ' ')
+            for cell in row.cells
+        ]
+        rows.append('| ' + ' | '.join(cells) + ' |')
+    if rows:
+        width = len(table.rows[0].cells)
+        rows.insert(1, '| ' + ' | '.join(['---'] * width) + ' |')
+    return '\n'.join(rows)
 
 
 def _iter_paragraphs(container) -> list[Paragraph]:
@@ -105,14 +124,21 @@ def _hex_is_near_white(value: Optional[str]) -> bool:
         blue = int(value[4:6], 16)
     except ValueError:
         return False
-    return red >= NEAR_WHITE_THRESHOLD and green >= NEAR_WHITE_THRESHOLD and blue >= NEAR_WHITE_THRESHOLD
+    return (
+        red >= NEAR_WHITE_THRESHOLD
+        and green >= NEAR_WHITE_THRESHOLD
+        and blue >= NEAR_WHITE_THRESHOLD
+    )
 
 
 def _is_vanished(run: Run) -> bool:
     rPr = run._element.find(qn('w:rPr'))
     if rPr is None:
         return False
-    return _is_on_off(rPr.find(qn('w:vanish'))) or _is_on_off(rPr.find(qn('w:webHidden')))
+    return (
+        _is_on_off(rPr.find(qn('w:vanish')))
+        or _is_on_off(rPr.find(qn('w:webHidden')))
+    )
 
 
 def _typical_size_pt(paragraphs: list[Paragraph]) -> Optional[float]:
@@ -139,7 +165,6 @@ def _is_hidden_run(run: Run, typical_size: Optional[float]) -> bool:
         return True
     if _hex_is_near_white(_run_color_hex(run)):
         return True
-
     size = _run_size_pt(run)
     if size is not None:
         if size <= TINY_SIZE_PT:
@@ -158,10 +183,3 @@ def _strip_hidden_content(document) -> None:
                 parent = run._element.getparent()
                 if parent is not None:
                     parent.remove(run._element)
-
-
-def _strip_emojis_from_document(document) -> None:
-    for paragraph in _all_paragraphs(document):
-        for run in paragraph.runs:
-            if run.text:
-                run.text = remove_emojis(run.text)

@@ -24,19 +24,14 @@ FONT_PRESETS = {
 }
 
 
-def _parse_color_from_form(
-    form,
-    color_field: str,
-    custom_field: str,
-    default: str = 'black',
-) -> tuple[int, int, int]:
+def _parse_color_from_form(form, color_field, custom_field, default='black'):
     color_key = form.get(color_field, default)
     if color_key == 'custom':
         hex_color = form.get(custom_field, '#000000').lstrip('#')
         if len(hex_color) == 6:
             return tuple(int(hex_color[i:i + 2], 16) for i in (0, 2, 4))
         return TEXT_COLOR_PRESETS[default]
-    return TEXT_COLOR_PRESETS.get(color_key, TEXT_COLOR_PRESETS[default])
+    return TEXT_COLOR_PRESETS.get(color_key, TEXT_COLOR_PRESETS[default])  # ← ИСПРАВЛЕНО
 
 
 TABLE_MODES = {

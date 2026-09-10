@@ -944,18 +944,60 @@
 
         formatRadios.forEach((radio) => radio.addEventListener('change', updateFormatUi));
 
-        form.addEventListener('submit', (event) => {
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();  // ← КЛЮЧЕВОЕ: отменяем стандартный POST
+
             if (!sourceFile.files.length && !textarea.value.trim()) {
-                event.preventDefault();
                 showToast('Enter Markdown or attach a .docx file');
                 return;
             }
+
             submitBtn.disabled = true;
             btnLabel.textContent = 'Converting…';
-            setTimeout(() => {
+
+            try {
+                const formData = new FormData(form);
+                const response = await fetch('/convert', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (!response.ok) {
+                    const text = await response.text();
+                    const errorMatch = text.match(/class="error"[^>]*>([^<]+)/);
+                    const errorMsg = errorMatch ? errorMatch[1] : `Server error: ${response.status}`;
+                    showToast(errorMsg);
+                    submitBtn.disabled = false;
+                    updateFormatUi();
+                    return;
+                }
+
+                const disposition = response.headers.get('Content-Disposition');
+                let filename = 'document.docx';
+                if (disposition) {
+                    const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                    if (match && match[1]) {
+                        filename = match[1].replace(/['"]/g, '');
+                    }
+                }
+
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                showToast(`Downloaded: ${filename}`);
+            } catch (err) {
+                showToast(`Network error: ${err.message}`);
+            } finally {
                 submitBtn.disabled = false;
                 updateFormatUi();
-            }, 5000);
+            }
         });
 
         clearDocument.addEventListener('click', () => {
