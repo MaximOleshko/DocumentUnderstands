@@ -61,8 +61,13 @@ def _iter_paragraphs(container) -> list[Paragraph]:
 def _all_paragraphs(document) -> list[Paragraph]:
     paragraphs = _iter_paragraphs(document)
     for section in document.sections:
-        paragraphs.extend(_iter_paragraphs(section.header))
-        paragraphs.extend(_iter_paragraphs(section.footer))
+        try:
+            if not section.header.is_linked_to_previous:
+                paragraphs.extend(_iter_paragraphs(section.header))
+            if not section.footer.is_linked_to_previous:
+                paragraphs.extend(_iter_paragraphs(section.footer))
+        except Exception:
+            continue
     return paragraphs
 
 

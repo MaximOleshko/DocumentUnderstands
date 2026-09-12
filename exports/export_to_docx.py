@@ -1,5 +1,3 @@
-# export_to_docx.py
-
 import docx
 from docx.shared import Pt, RGBColor, Inches
 from docx.oxml.ns import qn
