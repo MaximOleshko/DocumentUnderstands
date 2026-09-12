@@ -255,9 +255,25 @@
                 </form>
             </main>
         </div>
+        <footer class="site-footer">
+            <div class="footer-left">
+                <span class="footer-version">DocumentUnderstands v1.0</span>
+                <span class="footer-separator">•</span>
+                <span class="footer-description">Markdown to document converter</span>
+                <p>Author: <span class="footer-author">Maxim Oleshko</span></p>
+            </div>
+            <div class="footer-right">
+                <a href="https://github.com/MaximOleshko/DocumentUnderstands" target="_blank" rel="noopener" class="footer-link">GitHub</a>
+                <span class="footer-separator">•</span>
+                <span class="footer-copyright">© 2026</span>
+            </div>
+        </footer>
     </div>
 
     <div class="toast" id="toast" role="status"></div>
+    <div class="progress-bar" id="progress-bar" aria-hidden="true">
+        <div class="progress-bar-stripes"></div>
+    </div>
 
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>

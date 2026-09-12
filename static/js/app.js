@@ -27,6 +27,7 @@
     const themeToggle   = document.getElementById('theme-toggle');
     const themeIcon     = document.getElementById('theme-icon');
     const themeLabel    = document.getElementById('theme-label');
+    const progressBar   = document.getElementById('progress-bar')
 
     // Hidden text settings
     const stripHiddenCheckbox = document.getElementById('strip-hidden-checkbox');
@@ -59,6 +60,12 @@
         toast.textContent = message;
         toast.classList.add('show');
         setTimeout(() => toast.classList.remove('show'), 2800);
+    }
+
+    // ---- Progress Bar ----
+    function setProgress(active) {
+        progressBar.classList.toggle('active', active);
+        progressBar.setAttribute('aria-hidden', (String(!active)));
     }
 
     // ---- Counter ----
@@ -179,6 +186,7 @@
 
         submitBtn.disabled = true;
         btnLabel.textContent = 'Converting…';
+        setProgress(true);
 
         try {
             const formData = new FormData(form);
@@ -218,6 +226,7 @@
         } finally {
             submitBtn.disabled = false;
             updateFormatUi();
+            setProgress(false);
         }
     });
 
