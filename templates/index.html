@@ -4,6 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DocumentUnderstands — Markdown Converter</title>
+
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='logo-128px.png') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Noto+Sans+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+
     <script>
         (function () {
             const saved = localStorage.getItem('theme');
@@ -12,640 +20,6 @@
         })();
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
-    <script>
-        const socket = io();
-        socket.on('close_tab', function() {
-            console.log("Closing tab by signal...");
-            window.open('', '_self', '');
-            window.close();
-        });
-    </script>
-
-    <link rel="icon" type="image/png" href="{{ url_for('static', filename='logo-128px.png') }}">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Noto+Sans+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --accent: #3b6fd9;
-            --accent-hover: #5a87e6;
-            --accent-soft: rgba(59, 111, 217, 0.14);
-            --success: #2ea043;
-            --radius: 16px;
-            --transition: 0.22s cubic-bezier(0.4, 0, 0.2, 1);
-            --sidebar-width: 320px;
-        }
-
-        [data-theme="dark"] {
-            --bg: #0d1117;
-            --bg-soft: #161b22;
-            --surface: rgba(255, 255, 255, 0.04);
-            --surface-hover: rgba(255, 255, 255, 0.08);
-            --surface-solid: #1c2128;
-            --toolbar-bg: rgba(255, 255, 255, 0.02);
-            --border: rgba(255, 255, 255, 0.09);
-            --border-strong: rgba(255, 255, 255, 0.16);
-            --text: #eef2f6;
-            --text-muted: #9aa4af;
-            --placeholder: #6b7280;
-            --error-bg: rgba(248, 81, 73, 0.12);
-            --error-text: #ff9b96;
-            --error-border: rgba(248, 81, 73, 0.28);
-            --shadow: 0 20px 60px rgba(0, 0, 0, 0.42);
-            --overlay-bg: rgba(13, 17, 23, 0.86);
-            --overlay-active: rgba(59, 111, 217, 0.14);
-            --body-gradient-a: rgba(59, 111, 217, 0.16);
-            --body-gradient-b: rgba(46, 160, 67, 0.07);
-            --btn-secondary-hover: rgba(255, 255, 255, 0.1);
-            --pill-shadow: 0 8px 24px rgba(59, 111, 217, 0.32);
-            --primary-shadow: 0 10px 28px rgba(59, 111, 217, 0.34);
-            --primary-shadow-hover: 0 14px 34px rgba(59, 111, 217, 0.42);
-        }
-
-        [data-theme="light"] {
-            --bg: #eef1f5;
-            --bg-soft: #ffffff;
-            --surface: rgba(255, 255, 255, 0.72);
-            --surface-hover: rgba(255, 255, 255, 0.95);
-            --surface-solid: #ffffff;
-            --toolbar-bg: #f8fafc;
-            --border: rgba(15, 23, 42, 0.1);
-            --border-strong: rgba(15, 23, 42, 0.16);
-            --text: #0f172a;
-            --text-muted: #64748b;
-            --placeholder: #94a3b8;
-            --error-bg: #fef2f2;
-            --error-text: #b91c1c;
-            --error-border: #fecaca;
-            --shadow: 0 18px 48px rgba(15, 23, 42, 0.1);
-            --overlay-bg: rgba(255, 255, 255, 0.92);
-            --overlay-active: rgba(59, 111, 217, 0.1);
-            --body-gradient-a: rgba(59, 111, 217, 0.1);
-            --body-gradient-b: rgba(46, 160, 67, 0.06);
-            --btn-secondary-hover: #f1f5f9;
-            --pill-shadow: 0 8px 20px rgba(59, 111, 217, 0.22);
-            --primary-shadow: 0 10px 24px rgba(59, 111, 217, 0.24);
-            --primary-shadow-hover: 0 14px 30px rgba(59, 111, 217, 0.3);
-        }
-
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-
-        html, body { height: 100%; }
-
-        body {
-            font-family: 'Noto Sans', system-ui, sans-serif;
-            background:
-                radial-gradient(circle at 12% 0%, var(--body-gradient-a), transparent 34%),
-                radial-gradient(circle at 88% 8%, var(--body-gradient-b), transparent 30%),
-                var(--bg);
-            color: var(--text);
-            line-height: 1.5;
-            transition: background 0.3s ease, color 0.3s ease;
-        }
-
-        .app-shell {
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            padding: 20px 28px 28px;
-            animation: fadeIn 0.45s ease;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(6px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-            gap: 20px;
-            flex-wrap: wrap;
-            margin-bottom: 18px;
-            flex-shrink: 0;
-        }
-
-        .header-actions {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
-
-        .badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.72rem;
-            font-weight: 600;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            color: var(--accent-hover);
-            background: var(--accent-soft);
-            border: 1px solid rgba(59, 111, 217, 0.22);
-            padding: 6px 12px;
-            border-radius: 999px;
-            margin-bottom: 12px;
-        }
-
-        .badge-dot {
-            width: 7px;
-            height: 7px;
-            border-radius: 50%;
-            background: var(--success);
-        }
-
-        h1 {
-            font-size: clamp(1.85rem, 2.5vw, 2.45rem);
-            font-weight: 700;
-            letter-spacing: -0.03em;
-            margin-bottom: 6px;
-        }
-
-        .subtitle {
-            color: var(--text-muted);
-            font-size: 0.98rem;
-            max-width: 680px;
-        }
-
-        .theme-toggle {
-            appearance: none;
-            border: 1px solid var(--border-strong);
-            background: var(--surface-solid);
-            color: var(--text);
-            border-radius: 12px;
-            padding: 10px 14px;
-            font: inherit;
-            font-size: 0.86rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: var(--transition);
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .theme-toggle:hover {
-            background: var(--surface-hover);
-            border-color: var(--accent);
-        }
-
-        .format-pills {
-            display: inline-flex;
-            gap: 6px;
-            padding: 6px;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 14px;
-        }
-
-        .format-pill { position: relative; cursor: pointer; }
-        .format-pill input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
-        .format-pill span {
-            display: block;
-            padding: 10px 16px;
-            border-radius: 10px;
-            font-size: 0.86rem;
-            font-weight: 600;
-            color: var(--text-muted);
-            transition: var(--transition);
-        }
-        .format-pill input:checked + span {
-            background: linear-gradient(135deg, var(--accent), #4f7fe8);
-            color: #fff;
-            box-shadow: var(--pill-shadow);
-        }
-
-        .layout {
-            flex: 1;
-            display: grid;
-            grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
-            gap: 20px;
-            min-height: 0;
-        }
-
-        .sidebar {
-            display: grid;
-            gap: 14px;
-            align-content: start;
-            max-height: calc(100vh - 130px);
-            overflow: auto;
-            padding-right: 4px;
-        }
-
-        .sidebar::-webkit-scrollbar { width: 6px; }
-        .sidebar::-webkit-scrollbar-thumb {
-            background: var(--border-strong);
-            border-radius: 999px;
-        }
-
-        .sidebar-card {
-            background: var(--surface-solid);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            padding: 16px;
-            box-shadow: var(--shadow);
-            transition: background 0.3s ease, border-color 0.3s ease;
-        }
-
-        .sidebar-card h2 {
-            font-size: 0.76rem;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: var(--text-muted);
-            margin-bottom: 12px;
-        }
-
-        .sidebar-card ul {
-            list-style: none;
-            display: grid;
-            gap: 8px;
-        }
-
-        .sidebar-card li {
-            font-size: 0.86rem;
-            color: var(--text-muted);
-            padding-left: 14px;
-            position: relative;
-        }
-
-        .sidebar-card li::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0.55em;
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background: var(--accent);
-            opacity: 0.55;
-        }
-
-        .compat-note {
-            font-size: 0.82rem;
-            color: var(--text-muted);
-            line-height: 1.45;
-        }
-
-        .setting-group { display: grid; gap: 12px; }
-        .setting-label {
-            font-size: 0.82rem;
-            font-weight: 600;
-            color: var(--text);
-            margin-bottom: 4px;
-        }
-
-        .color-swatches {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
-        }
-
-        .color-swatch { position: relative; cursor: pointer; }
-        .color-swatch input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
-        .color-swatch span {
-            display: block;
-            height: 28px;
-            border-radius: 8px;
-            border: 2px solid transparent;
-            transition: var(--transition);
-        }
-        .color-swatch input:checked + span {
-            border-color: var(--accent-hover);
-            transform: scale(1.04);
-        }
-
-        .custom-color {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-top: 4px;
-        }
-
-        .custom-color input[type="color"] {
-            width: 34px;
-            height: 34px;
-            padding: 2px;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            cursor: pointer;
-            background: var(--surface-solid);
-        }
-
-        .custom-color label {
-            font-size: 0.82rem;
-            color: var(--text-muted);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            cursor: pointer;
-        }
-
-        .checkbox-option, .radio-option {
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
-            font-size: 0.86rem;
-            color: var(--text);
-            cursor: pointer;
-        }
-
-        .checkbox-option input, .radio-option input {
-            margin-top: 3px;
-            accent-color: var(--accent);
-            cursor: pointer;
-        }
-
-        .checkbox-option small, .radio-option small {
-            display: block;
-            color: var(--text-muted);
-            font-size: 0.76rem;
-            margin-top: 2px;
-        }
-
-        .font-select {
-            width: 100%;
-            padding: 10px 12px;
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            font: inherit;
-            font-size: 0.86rem;
-            color: var(--text);
-            background: var(--bg-soft);
-            cursor: pointer;
-            transition: var(--transition);
-        }
-
-        .font-select:focus {
-            outline: none;
-            border-color: var(--accent);
-            box-shadow: 0 0 0 3px var(--accent-soft);
-        }
-
-        .setting-divider {
-            height: 1px;
-            background: var(--border);
-            margin: 4px 0;
-        }
-
-        .radio-group { display: grid; gap: 8px; }
-
-        .editor-card {
-            background: var(--surface-solid);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            box-shadow: var(--shadow);
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            min-height: calc(100vh - 130px);
-            transition: background 0.3s ease, border-color 0.3s ease;
-        }
-
-        .editor-card form {
-            display: flex;
-            flex-direction: column;
-            flex: 1;
-            min-height: 0;
-        }
-
-        .editor-toolbar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 16px;
-            padding: 12px 18px;
-            background: var(--toolbar-bg);
-            border-bottom: 1px solid var(--border);
-            flex-shrink: 0;
-        }
-
-        .toolbar-left {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            min-width: 0;
-        }
-
-        .toolbar-title {
-            font-size: 0.86rem;
-            color: var(--text-muted);
-            font-family: 'Noto Sans Mono', monospace;
-        }
-
-        .file-badge {
-            display: none;
-            align-items: center;
-            max-width: 280px;
-            padding: 4px 10px;
-            border-radius: 999px;
-            background: var(--accent-soft);
-            border: 1px solid rgba(59, 111, 217, 0.22);
-            color: var(--accent-hover);
-            font-size: 0.76rem;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .file-badge.visible { display: inline-flex; }
-
-        .toolbar-meta {
-            font-size: 0.8rem;
-            color: var(--text-muted);
-            font-family: 'Noto Sans Mono', monospace;
-        }
-
-        .drop-zone {
-            position: relative;
-            flex: 1;
-            min-height: 0;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .drop-overlay {
-            position: absolute;
-            inset: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            background: var(--overlay-bg);
-            backdrop-filter: blur(8px);
-            border: 2px dashed transparent;
-            opacity: 0;
-            pointer-events: none;
-            transition: var(--transition);
-            z-index: 2;
-        }
-
-        .drop-zone.is-dragover .drop-overlay {
-            opacity: 1;
-            border-color: var(--accent-hover);
-            background: var(--overlay-active);
-        }
-
-        .drop-icon {
-            width: 52px;
-            height: 52px;
-            border-radius: 14px;
-            display: grid;
-            place-items: center;
-            background: var(--accent-soft);
-            color: var(--accent-hover);
-            font-size: 1.4rem;
-        }
-
-        .drop-overlay p { font-weight: 600; color: var(--text); }
-        .drop-overlay small { color: var(--text-muted); }
-
-        textarea {
-            width: 100%;
-            flex: 1;
-            min-height: 420px;
-            border: none;
-            outline: none;
-            resize: none;
-            padding: 20px 24px;
-            font-family: 'Noto Sans Mono', monospace;
-            font-size: 0.9rem;
-            line-height: 1.65;
-            color: var(--text);
-            background: transparent;
-        }
-
-        textarea::placeholder { color: var(--placeholder); }
-
-        .actions {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 16px;
-            padding: 14px 18px;
-            border-top: 1px solid var(--border);
-            background: var(--toolbar-bg);
-            flex-wrap: wrap;
-            flex-shrink: 0;
-        }
-
-        .actions-left {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
-
-        .hint { font-size: 0.82rem; color: var(--text-muted); }
-
-        .btn-secondary, .btn-primary {
-            appearance: none;
-            border: none;
-            cursor: pointer;
-            font: inherit;
-            font-weight: 600;
-            border-radius: 12px;
-            transition: var(--transition);
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 11px 18px;
-        }
-
-        .btn-secondary {
-            color: var(--text);
-            background: var(--surface-hover);
-            border: 1px solid var(--border-strong);
-        }
-
-        .btn-secondary:hover { background: var(--btn-secondary-hover); }
-
-        .btn-primary {
-            color: #fff;
-            background: linear-gradient(135deg, var(--accent), #4f7fe8);
-            box-shadow: var(--primary-shadow);
-        }
-
-        .btn-primary:hover:not(:disabled) {
-            transform: translateY(-1px);
-            box-shadow: var(--primary-shadow-hover);
-        }
-
-        .btn-primary:disabled {
-            opacity: 0.65;
-            cursor: wait;
-            transform: none;
-        }
-
-        .error {
-            margin-bottom: 16px;
-            padding: 14px 16px;
-            border-radius: 12px;
-            background: var(--error-bg);
-            color: var(--error-text);
-            border: 1px solid var(--error-border);
-            font-size: 0.9rem;
-        }
-
-        .toast {
-            position: fixed;
-            bottom: 24px;
-            right: 24px;
-            padding: 12px 16px;
-            border-radius: 12px;
-            background: var(--surface-solid);
-            border: 1px solid var(--border-strong);
-            color: var(--text);
-            box-shadow: var(--shadow);
-            opacity: 0;
-            transform: translateY(12px);
-            transition: var(--transition);
-            pointer-events: none;
-            z-index: 100;
-        }
-
-        .toast.show {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        #file-input { display: none; }
-
-        .document-panel {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 16px;
-            padding: 16px 18px;
-            border-bottom: 1px solid var(--border);
-            background: var(--accent-soft);
-        }
-
-        .document-panel[hidden] { display: none; }
-
-        .document-panel p {
-            margin-top: 4px;
-            font-size: 0.82rem;
-            color: var(--text-muted);
-        }
-
-        .editor-card.document-mode textarea {
-            display: none;
-        }
-
-        @media (max-width: 1024px) {
-            .app-shell { padding: 16px; }
-            .layout { grid-template-columns: 1fr; }
-            .sidebar {
-                max-height: none;
-                order: 2;
-            }
-            .editor-card { min-height: 70vh; }
-            header { flex-direction: column; align-items: flex-start; }
-        }
-    </style>
 </head>
 <body>
     <div class="app-shell">
@@ -686,6 +60,7 @@
                 <div class="sidebar-card">
                     <h2>Settings</h2>
                     <div class="setting-group">
+
                         <div>
                             <div class="setting-label">Body text color</div>
                             <div class="color-swatches">
@@ -761,7 +136,67 @@
                         <label class="checkbox-option"><input type="checkbox" name="strip_blockquotes" form="convert-form"><span>No blockquotes<small>Render &gt; lines as normal text</small></span></label>
                         <label class="checkbox-option"><input type="checkbox" name="strip_emojis" form="convert-form"><span>No emojis<small>Remove ✅ ❌ and similar symbols</small></span></label>
                         <label class="checkbox-option"><input type="checkbox" name="strip_horizontal_rules" form="convert-form"><span>No horizontal rules<small>Ignore --- dividers</small></span></label>
-                        <label class="checkbox-option"><input type="checkbox" name="strip_hidden_text" form="convert-form"><span>Remove hidden text<small>White, vanished, or unusually tiny runs in uploaded documents</small></span></label>
+
+                        <label class="checkbox-option">
+                            <input type="checkbox" name="strip_hidden_text" form="convert-form" id="strip-hidden-checkbox">
+                            <span>Remove hidden text
+                                <small>White, vanished, or unusually tiny runs in uploaded documents</small>
+                            </span>
+                        </label>
+
+                        <div class="hidden-settings" id="hidden-text-settings" hidden>
+                            <div class="hidden-setting-row">
+                                <div class="setting-label">Minimum visible size</div>
+                                <div class="size-control">
+                                    <input type="range" id="min-size-slider" min="0.5" max="20" step="0.5" value="2">
+                                    <input type="number" name="min_visible_size" id="min-size-input"
+                                           form="convert-form" min="0.5" max="20" step="0.5" value="2">
+                                    <span class="size-unit">pt</span>
+                                </div>
+                                <small>Runs smaller than this are treated as hidden</small>
+                            </div>
+
+                            <div class="hidden-setting-row">
+                                <div class="setting-label">Hidden color presets</div>
+                                <div class="preset-list">
+                                    <label class="checkbox-option">
+                                        <input type="checkbox" name="hidden_preset_white" form="convert-form" checked>
+                                        <span><i class="color-dot" style="background:#FFFFFF"></i>White <code>#FFFFFF</code></span>
+                                    </label>
+                                    <label class="checkbox-option">
+                                        <input type="checkbox" name="hidden_preset_smoke" form="convert-form" checked>
+                                        <span><i class="color-dot" style="background:#F5F5F5"></i>Smoke <code>#F5F5F5</code></span>
+                                    </label>
+                                    <label class="checkbox-option">
+                                        <input type="checkbox" name="hidden_preset_gainsboro" form="convert-form">
+                                        <span><i class="color-dot" style="background:#DCDCDC"></i>Gainsboro <code>#DCDCDC</code></span>
+                                    </label>
+                                    <label class="checkbox-option">
+                                        <input type="checkbox" name="hidden_preset_light_gray" form="convert-form">
+                                        <span><i class="color-dot" style="background:#D3D3D3"></i>Light gray <code>#D3D3D3</code></span>
+                                    </label>
+                                    <label class="checkbox-option">
+                                        <input type="checkbox" name="hidden_preset_cream" form="convert-form">
+                                        <span><i class="color-dot" style="background:#FFFDD0"></i>Cream <code>#FFFDD0</code></span>
+                                    </label>
+                                    <label class="checkbox-option">
+                                        <input type="checkbox" name="hidden_preset_pale_blue" form="convert-form">
+                                        <span><i class="color-dot" style="background:#DBEAFE"></i>Pale blue <code>#DBEAFE</code></span>
+                                    </label>
+                                </div>
+                                <small>Checked colors are removed along with near-white tones</small>
+                            </div>
+
+                            <div class="hidden-setting-row">
+                                <div class="setting-label">
+                                    Custom hidden colors
+                                    <button type="button" class="btn-mini" id="add-color-btn">+ Add</button>
+                                </div>
+                                <div class="preset-list" id="custom-colors-container"></div>
+                                <small>Your own colors treated as hidden</small>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
 
@@ -771,7 +206,7 @@
                         <li>DOCX — direct export</li>
                         <li>ODT, PDF — via LibreOffice</li>
                         <li>.md / .txt — into the editor</li>
-                        <li>.docx — kept as a full document</li>
+                        <li>.docx — parsed as Markdown</li>
                     </ul>
                     <p class="compat-note" style="margin-top: 12px;">
                         Best results in Microsoft Word and LibreOffice. Google Docs may simplify tables, borders, and custom styling.
@@ -792,7 +227,7 @@
                     <div class="document-panel" id="document-panel" hidden>
                         <div>
                             <strong id="document-name">document.docx</strong>
-                            <p>This file is kept as a Word document. Formatting, tables, and fonts stay intact until you convert.</p>
+                            <p>The document's text and tables are parsed as Markdown and re-exported with your settings.</p>
                         </div>
                         <button type="button" class="btn-secondary" id="clear-document">Remove</button>
                     </div>
@@ -824,222 +259,6 @@
 
     <div class="toast" id="toast" role="status"></div>
 
-    <script>
-        const root = document.documentElement;
-        const textarea = document.getElementById('markdown');
-        const charCount = document.getElementById('char-count');
-        const form = document.getElementById('convert-form');
-        const submitBtn = document.getElementById('submit-btn');
-        const btnLabel = document.getElementById('btn-label');
-        const dropZone = document.getElementById('drop-zone');
-        const fileInput = document.getElementById('file-input');
-        const uploadBtn = document.getElementById('upload-btn');
-        const fileBadge = document.getElementById('file-badge');
-        const exportHint = document.getElementById('export-hint');
-        const sourceFile = document.getElementById('source-file');
-        const documentPanel = document.getElementById('document-panel');
-        const documentName = document.getElementById('document-name');
-        const sourceTitle = document.getElementById('source-title');
-        const clearDocument = document.getElementById('clear-document');
-        const editorCard = document.querySelector('.editor-card');
-        const toast = document.getElementById('toast');
-        const formatRadios = document.querySelectorAll('input[name="output_format"]');
-        const themeToggle = document.getElementById('theme-toggle');
-        const themeIcon = document.getElementById('theme-icon');
-        const themeLabel = document.getElementById('theme-label');
-
-        const formatLabels = {
-            docx: { file: 'document.docx', action: 'Convert to DOCX' },
-            odt: { file: 'document.odt', action: 'Convert to ODT' },
-            pdf: { file: 'document.pdf', action: 'Convert to PDF' },
-        };
-
-        function showToast(message) {
-            toast.textContent = message;
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 2800);
-        }
-
-        function updateCount() {
-            if (sourceFile.files.length) {
-                const sizeKb = Math.max(1, Math.round(sourceFile.files[0].size / 1024));
-                charCount.textContent = `${sizeKb.toLocaleString('en-US')} KB document`;
-                return;
-            }
-            charCount.textContent = `${textarea.value.length.toLocaleString('en-US')} characters`;
-        }
-
-        function setDocumentMode(file) {
-            const transfer = new DataTransfer();
-            if (file) transfer.items.add(file);
-            sourceFile.files = transfer.files;
-
-            const attached = Boolean(file);
-            documentPanel.hidden = !attached;
-            editorCard.classList.toggle('document-mode', attached);
-            sourceTitle.textContent = attached ? 'Document' : 'Markdown';
-            textarea.required = !attached;
-            if (attached) {
-                documentName.textContent = file.name;
-                fileBadge.textContent = file.name;
-                fileBadge.classList.add('visible');
-            } else {
-                fileBadge.textContent = '';
-                fileBadge.classList.remove('visible');
-            }
-            updateCount();
-        }
-
-        function updateFormatUi() {
-            const selected = document.querySelector('input[name="output_format"]:checked')?.value || 'docx';
-            const meta = formatLabels[selected];
-            exportHint.innerHTML = `Download <strong>${meta.file}</strong>`;
-            if (!submitBtn.disabled) btnLabel.textContent = meta.action;
-        }
-
-        function updateThemeUi(theme) {
-            const isDark = theme === 'dark';
-            themeIcon.textContent = isDark ? '☀' : '☾';
-            themeLabel.textContent = isDark ? 'Light' : 'Dark';
-        }
-
-        function setTheme(theme) {
-            root.setAttribute('data-theme', theme);
-            localStorage.setItem('theme', theme);
-            updateThemeUi(theme);
-        }
-
-        themeToggle.addEventListener('click', () => {
-            const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-            setTheme(next);
-        });
-
-        updateThemeUi(root.getAttribute('data-theme') || 'dark');
-
-        async function importFile(file) {
-            const name = file.name.toLowerCase();
-            const allowed = ['.md', '.markdown', '.txt', '.docx'];
-            if (!allowed.some((ext) => name.endsWith(ext))) {
-                showToast('Supported: .md, .txt, .docx');
-                return;
-            }
-
-            if (name.endsWith('.docx')) {
-                setDocumentMode(file);
-                showToast(`Attached document: ${file.name}`);
-                return;
-            }
-
-            setDocumentMode(null);
-            textarea.value = await file.text();
-            fileBadge.textContent = file.name;
-            fileBadge.classList.add('visible');
-            updateCount();
-            showToast(`Loaded: ${file.name}`);
-        }
-
-        textarea.addEventListener('input', updateCount);
-        updateCount();
-        updateFormatUi();
-
-        formatRadios.forEach((radio) => radio.addEventListener('change', updateFormatUi));
-
-        form.addEventListener('submit', async (event) => {
-            event.preventDefault();  // ← КЛЮЧЕВОЕ: отменяем стандартный POST
-
-            if (!sourceFile.files.length && !textarea.value.trim()) {
-                showToast('Enter Markdown or attach a .docx file');
-                return;
-            }
-
-            submitBtn.disabled = true;
-            btnLabel.textContent = 'Converting…';
-
-            try {
-                const formData = new FormData(form);
-                const response = await fetch('/convert', {
-                    method: 'POST',
-                    body: formData,
-                });
-
-                if (!response.ok) {
-                    const text = await response.text();
-                    const errorMatch = text.match(/class="error"[^>]*>([^<]+)/);
-                    const errorMsg = errorMatch ? errorMatch[1] : `Server error: ${response.status}`;
-                    showToast(errorMsg);
-                    submitBtn.disabled = false;
-                    updateFormatUi();
-                    return;
-                }
-
-                const disposition = response.headers.get('Content-Disposition');
-                let filename = 'document.docx';
-                if (disposition) {
-                    const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-                    if (match && match[1]) {
-                        filename = match[1].replace(/['"]/g, '');
-                    }
-                }
-
-                const blob = await response.blob();
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-
-                showToast(`Downloaded: ${filename}`);
-            } catch (err) {
-                showToast(`Network error: ${err.message}`);
-            } finally {
-                submitBtn.disabled = false;
-                updateFormatUi();
-            }
-        });
-
-        clearDocument.addEventListener('click', () => {
-            setDocumentMode(null);
-            showToast('Document removed');
-        });
-
-        textarea.addEventListener('keydown', (event) => {
-            if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') form.requestSubmit();
-        });
-
-        uploadBtn.addEventListener('click', () => fileInput.click());
-        fileInput.addEventListener('change', () => {
-            if (fileInput.files[0]) importFile(fileInput.files[0]);
-            fileInput.value = '';
-        });
-
-        ['dragenter', 'dragover'].forEach((eventName) => {
-            dropZone.addEventListener(eventName, (event) => {
-                event.preventDefault();
-                dropZone.classList.add('is-dragover');
-            });
-        });
-
-        ['dragleave', 'drop'].forEach((eventName) => {
-            dropZone.addEventListener(eventName, (event) => {
-                event.preventDefault();
-                dropZone.classList.remove('is-dragover');
-            });
-        });
-
-        dropZone.addEventListener('drop', (event) => {
-            const file = event.dataTransfer.files[0];
-            if (file) importFile(file);
-        });
-
-        document.getElementById('custom-color-picker').addEventListener('input', () => {
-            document.getElementById('color-custom').checked = true;
-        });
-        document.getElementById('table-custom-color-picker').addEventListener('input', () => {
-            document.getElementById('table-color-custom').checked = true;
-        });
-    </script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>

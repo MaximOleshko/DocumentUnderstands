@@ -11,7 +11,6 @@ from docx.text.run import Run
 from exports.settings import ExportSettings
 
 NEAR_WHITE_THRESHOLD = 240
-TINY_SIZE_PT = 2.0
 SMALL_RELATIVE_RATIO = 0.4
 
 HIDDEN_COLOR_VALUES = {
@@ -19,13 +18,12 @@ HIDDEN_COLOR_VALUES = {
     'F7F7F7', 'F5F5F5', 'F0F0F0',
 }
 
-# Extract Markdown from .docx
 
 def extract_markdown_from_docx(data: bytes, settings: ExportSettings) -> str:
     document = docx.Document(BytesIO(data))
 
     if settings.strip_hidden_text:
-        _strip_hidden_content(document)
+        _strip_hidden_content(document, settings)
 
     lines = []
     for child in document.element.body.iterchildren():
@@ -111,6 +109,16 @@ def _run_color_hex(run: Run) -> Optional[str]:
     return value.upper()
 
 
+def _run_color_rgb(run: Run) -> Optional[tuple]:
+    value = _run_color_hex(run)
+    if not value or len(value) != 6:
+        return None
+    try:
+        return tuple(int(value[i:i + 2], 16) for i in (0, 2, 4))
+    except ValueError:
+        return None
+
+
 def _hex_is_near_white(value: Optional[str]) -> bool:
     if not value:
         return False
@@ -157,29 +165,41 @@ def _typical_size_pt(paragraphs: list[Paragraph]) -> Optional[float]:
     return Counter(sizes).most_common(1)[0][0]
 
 
-def _is_hidden_run(run: Run, typical_size: Optional[float]) -> bool:
+def _is_hidden_run(run: Run, typical_size: Optional[float], settings: ExportSettings) -> bool:
     text = run.text or ''
     if not text:
         return False
+
+    # 1. vanish / webHidden
     if _is_vanished(run):
         return True
+
+    # 2. default detect
     if _hex_is_near_white(_run_color_hex(run)):
         return True
+
+    # 3. presets and custom colors
+    rgb = _run_color_rgb(run)
+    if rgb is not None and rgb in settings.hidden_colors:
+        return True
+
+    # 4. size
     size = _run_size_pt(run)
     if size is not None:
-        if size <= TINY_SIZE_PT:
+        if size <= settings.min_visible_size_pt:
             return True
         if typical_size and size < typical_size * SMALL_RELATIVE_RATIO:
             return True
+
     return False
 
 
-def _strip_hidden_content(document) -> None:
+def _strip_hidden_content(document, settings: ExportSettings) -> None:
     paragraphs = _all_paragraphs(document)
     typical_size = _typical_size_pt(paragraphs)
     for paragraph in paragraphs:
         for run in list(paragraph.runs):
-            if _is_hidden_run(run, typical_size):
+            if _is_hidden_run(run, typical_size, settings):
                 parent = run._element.getparent()
                 if parent is not None:
                     parent.remove(run._element)
