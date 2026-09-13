@@ -73,7 +73,14 @@ cd ~/Downloads
 sha256sum -c SHA256SUMS.txt
 ```
 
-**Output should be:** OK
+**Output must be:** OK
+
+```
+chmod +x DocumentUnderstands-linux*
+./DocumentUnderstands-linux*
+```
+
+On Linux, the browser does not open site automatically. Open it yourself `http://localhost:5000/`
 
 *Windows:*
 
