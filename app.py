@@ -5,10 +5,12 @@ import time
 import atexit
 import logging
 import sys
+from pathlib import Path
+
 from flask import Flask, render_template, request, send_file
 from flask_socketio import SocketIO
 from converts.markdown_to_ast import MarkdownParser
-from exports.document_export import OUTPUT_FORMATS, export_document, export_from_docx_bytes
+from exports.document_export import OUTPUT_FORMATS, export_document
 from exports.settings import ExportSettings
 from imports.document_processor import extract_markdown_from_docx
 
@@ -117,6 +119,19 @@ def convert():
         download_name=meta['filename'],
         mimetype=meta['mimetype'],
     )
+
+
+@app.route('/licenses')
+def licenses():
+    return send_file(
+        resource_path('LICENSES.txt'),
+        mimetype='text/plain; charset=utf-8',
+    )
+
+
+def resource_path(relative: str) -> Path:
+    base = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent))
+    return base / relative
 
 
 def _convert_markdown(markdown_text: str, settings: ExportSettings, output_format: str):
