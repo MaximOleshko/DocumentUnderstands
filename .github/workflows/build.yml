@@ -17,9 +17,9 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            asset: DocumentUnderstands-windows.exe
+            asset: DocumentUnderstands-win-v1.0.exe
           - os: ubuntu-latest
-            asset: DocumentUnderstands-linux
+            asset: DocumentUnderstands-linux-v1.0
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
 
@@ -30,7 +30,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12' # 3.14
+          python-version: '3.14' # 3.14
           cache: pip
 
       - name: Install dependencies
