@@ -1,3 +1,4 @@
+from __future__ import annotations
 import docx
 from docx.shared import Pt, RGBColor, Inches
 from docx.oxml.ns import qn
