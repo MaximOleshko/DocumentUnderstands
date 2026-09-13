@@ -1,5 +1,7 @@
+import os
 import shutil
 import subprocess
+import sys
 import tempfile
 from io import BytesIO
 from pathlib import Path
@@ -58,8 +60,21 @@ def _export_to_docx(ast: Document, settings: ExportSettings) -> BytesIO:
 
 def _find_libreoffice() -> Optional[str]:
     for command in ('libreoffice', 'soffice'):
-        if shutil.which(command):
-            return command
+        found = shutil.which(command)
+        if found:
+            return found
+    if os.name == 'nt':
+        bases = (
+            os.environ.get('PROGRAMFILES', ''),
+            os.environ.get('PROGRAMFILES(X86)', ''),
+            os.environ.get('LOCALAPPDATA', ''),
+        )
+        for base in bases:
+            if not base:
+                continue
+            candidate = Path(base) / 'LibreOffice' / 'program' / 'soffice.exe'
+            if candidate.exists():
+                return str(candidate)
     return None
 
 
@@ -91,6 +106,7 @@ def _convert_docx_with_libreoffice(docx_buffer: BytesIO, target_format: str) -> 
             capture_output=True,
             text=True,
             check=False,
+            env=_clean_subprocess_env(),
         )
 
         if result.returncode != 0:
@@ -104,3 +120,29 @@ def _convert_docx_with_libreoffice(docx_buffer: BytesIO, target_format: str) -> 
             raise RuntimeError('LibreOffice did not produce an output file.')
 
         return BytesIO(output_file.read_bytes())
+
+
+def _clean_subprocess_env() -> dict:
+    env = os.environ.copy()
+    meipass = getattr(sys, '_MEIPASS', None)
+    if not meipass:
+        return env  # dev
+
+    # Linux/macOS:
+    for var in ('LD_LIBRARY_PATH', 'DYLD_LIBRARY_PATH', 'DYLD_FALLBACK_LIBRARY_PATH'):
+        value = env.get(var)
+        if value:
+            paths = [p for p in value.split(os.pathsep)
+                     if p and not p.startswith(meipass)]
+            if paths:
+                env[var] = os.pathsep.join(paths)
+            else:
+                env.pop(var, None)
+
+    # Windows: PATH
+    if os.name == 'nt' and env.get('PATH'):
+        paths = [p for p in env['PATH'].split(os.pathsep)
+                 if p and not p.startswith(meipass)]
+        env['PATH'] = os.pathsep.join(paths)
+
+    return env
