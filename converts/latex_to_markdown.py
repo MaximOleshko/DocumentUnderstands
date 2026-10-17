@@ -48,11 +48,9 @@ def _extract_and_replace_math(latex: str) -> Tuple[str, List[Tuple[str, str, str
     This MUST be done BEFORE pylatexenc processes the text,
     otherwise pylatexenc will convert the math to unicode characters.
     
-    Handles:
-    - Inline math: $...$ or \(...\)
-    - Display math: $$...$$ or \[...\]
-    
-    Uses a stateful parser to handle nested braces and dollar signs correctly.
+    Uses a simple character-by-character parser to handle:
+    - Inline math: $...$ (single dollar signs)
+    - Display math: $$...$$ (double dollar signs)
     
     Returns (latex_with_placeholders, placeholders_info)
     where placeholders_info is a list of (placeholder, math_type, formula)
@@ -62,48 +60,34 @@ def _extract_and_replace_math(latex: str) -> Tuple[str, List[Tuple[str, str, str
     i = 0
     
     while i < len(latex):
-        # Check for display math: $$...$$
+        # Check for display math: $$
         if i + 1 < len(latex) and latex[i] == '$' and latex[i+1] == '$':
-            # Found $$, find matching $$
-            formula, end_pos = _extract_math_content(latex, i + 2, '$$')
+            formula = _extract_until(latex, i + 2, '$$')
             if formula is not None:
                 placeholder = f'__MATH_DISPLAY_{len(placeholders_info)}__'
                 placeholders_info.append((placeholder, 'display', formula))
                 result.append(placeholder)
-                i = end_pos + 2
+                i += len(formula) + 4  # Skip past $$...$$
+                continue
+            else:
+                # Malformed, just continue
+                result.append(latex[i])
+                i += 1
                 continue
         
-        # Check for inline math: $...$
+        # Check for inline math: $
         elif latex[i] == '$':
-            # Found $, find matching $
-            formula, end_pos = _extract_math_content(latex, i + 1, '$')
+            formula = _extract_until(latex, i + 1, '$')
             if formula is not None:
                 placeholder = f'__MATH_INLINE_{len(placeholders_info)}__'
                 placeholders_info.append((placeholder, 'inline', formula))
                 result.append(placeholder)
-                i = end_pos + 1
+                i += len(formula) + 2  # Skip past $...$
                 continue
-        
-        # Check for \(...\)
-        elif i + 1 < len(latex) and latex[i] == '\\' and latex[i+1] == '(':
-            # Found \(, find matching \)
-            formula, end_pos = _extract_math_content(latex, i + 2, '\\')
-            if formula is not None and end_pos + 1 < len(latex) and latex[end_pos+1] == ')':
-                placeholder = f'__MATH_INLINE_{len(placeholders_info)}__'
-                placeholders_info.append((placeholder, 'inline', formula))
-                result.append(placeholder)
-                i = end_pos + 2
-                continue
-        
-        # Check for \[...\]
-        elif i + 1 < len(latex) and latex[i] == '\\' and latex[i+1] == '[':
-            # Found \[, find matching \]
-            formula, end_pos = _extract_math_content(latex, i + 2, '\\')
-            if formula is not None and end_pos + 1 < len(latex) and latex[end_pos+1] == ']':
-                placeholder = f'__MATH_DISPLAY_{len(placeholders_info)}__'
-                placeholders_info.append((placeholder, 'display', formula))
-                result.append(placeholder)
-                i = end_pos + 2
+            else:
+                # Malformed, just continue
+                result.append(latex[i])
+                i += 1
                 continue
         
         result.append(latex[i])
@@ -112,47 +96,44 @@ def _extract_and_replace_math(latex: str) -> Tuple[str, List[Tuple[str, str, str
     return ''.join(result), placeholders_info
 
 
-def _extract_math_content(latex: str, start_pos: int, end_marker: str) -> Tuple[Optional[str], int]:
+def _extract_until(latex: str, start_pos: int, end_marker: str) -> Optional[str]:
     """
-    Extract math content from start_pos, looking for end_marker.
-    Handles nested braces {} correctly.
-    Returns (formula, end_position) or (None, start_pos-1) if not found.
+    Extract content from start_pos until we find end_marker.
+    Handles nested braces { } correctly.
+    Returns the extracted content (without end_marker) or None if not found.
     """
     depth = 0
     i = start_pos
     content = []
     
     while i < len(latex):
-        if latex[i] == '{':
+        c = latex[i]
+        
+        if c == '{':
             depth += 1
-            content.append(latex[i])
-        elif latex[i] == '}':
+            content.append(c)
+        elif c == '}':
             if depth > 0:
                 depth -= 1
-                content.append(latex[i])
-        elif latex[i] == '\\' and i + 1 < len(latex):
-            # Handle escape sequences
-            content.append(latex[i])
+                content.append(c)
+        elif c == '\\' and i + 1 < len(latex):
+            # Handle escape sequences - consume both characters
+            content.append(c)
             content.append(latex[i+1])
             i += 1
+        elif end_marker == '$$' and i + 1 < len(latex) and latex[i] == '$' and latex[i+1] == '$':
+            # Found $$
+            return ''.join(content)
         elif end_marker == '$' and latex[i] == '$':
-            # Found matching $ for inline math
-            return ''.join(content), i
-        elif end_marker == '\\' and latex[i] == '\\' and i + 1 < len(latex):
-            # Check if this is the end marker
-            if latex[i+1] == ')' or latex[i+1] == ']':
-                return ''.join(content), i
-            else:
-                content.append(latex[i])
-                content.append(latex[i+1])
-                i += 1
+            # Found $
+            return ''.join(content)
         else:
-            content.append(latex[i])
+            content.append(c)
         
         i += 1
     
     # If we get here, we didn't find the end marker
-    return None, start_pos - 1
+    return None
 
 
 def _restore_math_formulas(text: str, placeholders_info: List[Tuple[str, str, str]]) -> str:
