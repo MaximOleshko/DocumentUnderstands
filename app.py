@@ -10,7 +10,7 @@ from pathlib import Path
 from flask import Flask, render_template, request, send_file
 from flask_socketio import SocketIO
 from converts.markdown_to_ast import MarkdownParser
-from converts.latex_to_markdown import latex_to_markdown
+from converts.latex_to_html import convert_latex_to_docx
 from exports.document_export import OUTPUT_FORMATS, export_document
 from exports.settings import ExportSettings
 from imports.document_processor import extract_markdown_from_docx
@@ -96,10 +96,14 @@ def convert():
                     return render_template('index.html', error='The uploaded file is empty.'), 400
                 # Handle LaTeX files
                 if extension in LATEX_EXTENSIONS:
-                    markdown_text = latex_to_markdown(file_content)
+                    # Convert LaTeX to DOCX directly
+                    docx_buffer = convert_latex_to_docx(file_content)
+                    # For ODT and PDF, convert DOCX to target format
+                    from exports.document_export import export_from_docx_bytes
+                    buffer = export_from_docx_bytes(docx_buffer, output_format)
                 else:
                     markdown_text = file_content
-                buffer = _convert_markdown(markdown_text, settings, output_format)
+                    buffer = _convert_markdown(markdown_text, settings, output_format)
             else:
                 return render_template(
                     'index.html',
