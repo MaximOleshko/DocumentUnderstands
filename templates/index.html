@@ -27,7 +27,7 @@
             <div>
                 <div class="badge"><span class="badge-dot"></span> Markdown Converter</div>
                 <h1>DocumentUnderstands</h1>
-                <p class="subtitle">Drop a file or paste Markdown, tune export settings, and download DOCX, ODT, or PDF.</p>
+                <p class="subtitle">Drop a file or paste Markdown/LaTeX, tune export settings, and download DOCX, ODT, or PDF.</p>
             </div>
             <div class="header-actions">
                 <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
@@ -205,7 +205,7 @@
                     <ul>
                         <li>DOCX — direct export</li>
                         <li>ODT, PDF — via LibreOffice</li>
-                        <li>.md / .txt — into the editor</li>
+                        <li>.md / .txt / .tex / .latex — into the editor</li>
                         <li>.docx — parsed as Markdown</li>
                     </ul>
                     <p class="compat-note" style="margin-top: 12px;">
@@ -231,22 +231,22 @@
                         </div>
                         <button type="button" class="btn-secondary" id="clear-document">Remove</button>
                     </div>
-                    <input type="file" name="source_file" id="source-file" accept=".docx" hidden>
+                    <input type="file" name="source_file" id="source-file" accept=".docx,.tex,.latex" hidden>
 
                     <div class="drop-zone" id="drop-zone">
                         <div class="drop-overlay">
                             <div class="drop-icon">↓</div>
                             <p>Drop file here</p>
-                            <small>.md · .txt into editor · .docx as a document</small>
+                            <small>.md · .txt · .tex into editor · .docx as a document</small>
                         </div>
-                        <textarea id="markdown" name="markdown" placeholder="# Heading&#10;&#10;Type Markdown, or drop a .docx to keep full formatting…&#10;&#10;- list item&#10;- **bold text**" autofocus></textarea>
+                        <textarea id="markdown" name="markdown" placeholder="# Heading&#10;&#10;Type Markdown or LaTeX, or drop a .docx to keep full formatting…&#10;&#10;- list item&#10;- **bold text**&#10;\section{Section}&#10;$x^2$" autofocus></textarea>
                     </div>
 
                     <div class="actions">
                         <div class="actions-left">
                             <p class="hint" id="export-hint">Download <strong>document.docx</strong></p>
                             <button type="button" class="btn-secondary" id="upload-btn">Upload file</button>
-                            <input type="file" id="file-input" accept=".md,.markdown,.txt,.docx">
+                            <input type="file" id="file-input" accept=".md,.markdown,.txt,.tex,.latex,.docx">
                         </div>
                         <button type="submit" class="btn-primary" id="submit-btn">
                             <span id="btn-label">Convert to DOCX</span>

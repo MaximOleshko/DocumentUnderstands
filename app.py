@@ -10,6 +10,7 @@ from pathlib import Path
 from flask import Flask, render_template, request, send_file
 from flask_socketio import SocketIO
 from converts.markdown_to_ast import MarkdownParser
+from converts.latex_to_markdown import latex_to_markdown
 from exports.document_export import OUTPUT_FORMATS, export_document
 from exports.settings import ExportSettings
 from imports.document_processor import extract_markdown_from_docx
@@ -21,8 +22,9 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 HOST = '127.0.0.1'
 PORT = 5000
 
-TEXT_EXTENSIONS = {'md', 'markdown', 'txt'}
+TEXT_EXTENSIONS = {'md', 'markdown', 'txt', 'tex', 'latex'}
 DOCUMENT_EXTENSIONS = {'docx'}
+LATEX_EXTENSIONS = {'tex', 'latex'}
 
 # Werkzeug setup
 log = logging.getLogger("werkzeug")
@@ -89,9 +91,14 @@ def convert():
                     return render_template('index.html', error='The uploaded document is empty.'), 400
                 buffer = _convert_markdown(markdown_text, settings, output_format)
             elif extension in TEXT_EXTENSIONS:
-                markdown_text = uploaded.read().decode('utf-8').strip()
-                if not markdown_text:
+                file_content = uploaded.read().decode('utf-8').strip()
+                if not file_content:
                     return render_template('index.html', error='The uploaded file is empty.'), 400
+                # Handle LaTeX files
+                if extension in LATEX_EXTENSIONS:
+                    markdown_text = latex_to_markdown(file_content)
+                else:
+                    markdown_text = file_content
                 buffer = _convert_markdown(markdown_text, settings, output_format)
             else:
                 return render_template(
