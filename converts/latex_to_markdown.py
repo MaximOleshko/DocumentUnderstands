@@ -1,6 +1,6 @@
 from __future__ import annotations
 import re
-from typing import Optional, Tuple, Dict, List
+from typing import Optional, Tuple, List
 
 from pylatexenc.latex2text import LatexNodes2Text
 
@@ -13,18 +13,18 @@ def latex_to_markdown(latex_content: str) -> str:
     Handles common LaTeX constructs like sections, lists, math, and special characters.
     
     For math formulas, preserves them in LaTeX format wrapped in $...$ or $$...$$ 
-    for better compatibility with Markdown viewers.
+    for better compatibility with Markdown viewers and document export.
     """
     if not latex_content.strip():
         return ""
 
-    # Step 1: Extract and replace math formulas with placeholders
+    # Step 1: Extract and replace math formulas with placeholders BEFORE pylatexenc sees them
     latex_with_placeholders, placeholders_info = _extract_and_replace_math(latex_content)
     
-    # Step 2: Clean and preprocess LaTeX (without math)
+    # Step 2: Clean and preprocess LaTeX (without math formulas)
     cleaned_latex = _preprocess_latex(latex_with_placeholders)
     
-    # Step 3: Use pylatexenc for basic conversion
+    # Step 3: Use pylatexenc for basic conversion (math is now protected)
     converter = LatexNodes2Text()
     try:
         plain_text = converter.latex_to_text(cleaned_latex)
@@ -45,42 +45,114 @@ def _extract_and_replace_math(latex: str) -> Tuple[str, List[Tuple[str, str, str
     Extract math formulas from LaTeX, replace them with placeholders,
     and return the modified LaTeX and info about the formulas.
     
+    This MUST be done BEFORE pylatexenc processes the text,
+    otherwise pylatexenc will convert the math to unicode characters.
+    
+    Handles:
+    - Inline math: $...$ or \(...\)
+    - Display math: $$...$$ or \[...\]
+    
+    Uses a stateful parser to handle nested braces and dollar signs correctly.
+    
     Returns (latex_with_placeholders, placeholders_info)
     where placeholders_info is a list of (placeholder, math_type, formula)
     """
     placeholders_info = []
+    result = []
+    i = 0
     
-    # Pattern for display math: $$...$$ or \[...\]
-    display_pattern = r'\$\$(.*?)\$\$|\\[(.*?)\\]'
+    while i < len(latex):
+        # Check for display math: $$...$$
+        if i + 1 < len(latex) and latex[i] == '$' and latex[i+1] == '$':
+            # Found $$, find matching $$
+            formula, end_pos = _extract_math_content(latex, i + 2, '$$')
+            if formula is not None:
+                placeholder = f'__MATH_DISPLAY_{len(placeholders_info)}__'
+                placeholders_info.append((placeholder, 'display', formula))
+                result.append(placeholder)
+                i = end_pos + 2
+                continue
+        
+        # Check for inline math: $...$
+        elif latex[i] == '$':
+            # Found $, find matching $
+            formula, end_pos = _extract_math_content(latex, i + 1, '$')
+            if formula is not None:
+                placeholder = f'__MATH_INLINE_{len(placeholders_info)}__'
+                placeholders_info.append((placeholder, 'inline', formula))
+                result.append(placeholder)
+                i = end_pos + 1
+                continue
+        
+        # Check for \(...\)
+        elif i + 1 < len(latex) and latex[i] == '\\' and latex[i+1] == '(':
+            # Found \(, find matching \)
+            formula, end_pos = _extract_math_content(latex, i + 2, '\\')
+            if formula is not None and end_pos + 1 < len(latex) and latex[end_pos+1] == ')':
+                placeholder = f'__MATH_INLINE_{len(placeholders_info)}__'
+                placeholders_info.append((placeholder, 'inline', formula))
+                result.append(placeholder)
+                i = end_pos + 2
+                continue
+        
+        # Check for \[...\]
+        elif i + 1 < len(latex) and latex[i] == '\\' and latex[i+1] == '[':
+            # Found \[, find matching \]
+            formula, end_pos = _extract_math_content(latex, i + 2, '\\')
+            if formula is not None and end_pos + 1 < len(latex) and latex[end_pos+1] == ']':
+                placeholder = f'__MATH_DISPLAY_{len(placeholders_info)}__'
+                placeholders_info.append((placeholder, 'display', formula))
+                result.append(placeholder)
+                i = end_pos + 2
+                continue
+        
+        result.append(latex[i])
+        i += 1
     
-    def replace_display(match):
-        idx = len(placeholders_info)
-        if match.group(1):
-            formula = match.group(1)
+    return ''.join(result), placeholders_info
+
+
+def _extract_math_content(latex: str, start_pos: int, end_marker: str) -> Tuple[Optional[str], int]:
+    """
+    Extract math content from start_pos, looking for end_marker.
+    Handles nested braces {} correctly.
+    Returns (formula, end_position) or (None, start_pos-1) if not found.
+    """
+    depth = 0
+    i = start_pos
+    content = []
+    
+    while i < len(latex):
+        if latex[i] == '{':
+            depth += 1
+            content.append(latex[i])
+        elif latex[i] == '}':
+            if depth > 0:
+                depth -= 1
+                content.append(latex[i])
+        elif latex[i] == '\\' and i + 1 < len(latex):
+            # Handle escape sequences
+            content.append(latex[i])
+            content.append(latex[i+1])
+            i += 1
+        elif end_marker == '$' and latex[i] == '$':
+            # Found matching $ for inline math
+            return ''.join(content), i
+        elif end_marker == '\\' and latex[i] == '\\' and i + 1 < len(latex):
+            # Check if this is the end marker
+            if latex[i+1] == ')' or latex[i+1] == ']':
+                return ''.join(content), i
+            else:
+                content.append(latex[i])
+                content.append(latex[i+1])
+                i += 1
         else:
-            formula = match.group(2)
-        placeholder = f'__MATH_DISPLAY_{idx}__'
-        placeholders_info.append((placeholder, 'display', formula))
-        return placeholder
+            content.append(latex[i])
+        
+        i += 1
     
-    latex = re.sub(display_pattern, replace_display, latex)
-    
-    # Pattern for inline math: $...$ or \(...\)
-    inline_pattern = r'\$(.*?)\$|\\((.*?)\\)'
-    
-    def replace_inline(match):
-        idx = len(placeholders_info)
-        if match.group(1):
-            formula = match.group(1)
-        else:
-            formula = match.group(2)
-        placeholder = f'__MATH_INLINE_{idx}__'
-        placeholders_info.append((placeholder, 'inline', formula))
-        return placeholder
-    
-    latex = re.sub(inline_pattern, replace_inline, latex)
-    
-    return latex, placeholders_info
+    # If we get here, we didn't find the end marker
+    return None, start_pos - 1
 
 
 def _restore_math_formulas(text: str, placeholders_info: List[Tuple[str, str, str]]) -> str:
