@@ -10,17 +10,23 @@ logger = logging.getLogger('latex_to_markdown')
 logger.setLevel(logging.DEBUG)
 
 
-def latex_to_markdown(latex_content: str) -> str:
+def latex_to_markdown(latex_content: str, for_docx: bool = True) -> str:
     """
     Convert LaTeX content to Markdown format.
 
     Uses pylatexenc to parse LaTeX and convert it to plain text with Markdown formatting.
     Handles common LaTeX constructs like sections, lists, math, and special characters.
     
-    For math formulas, preserves them in LaTeX format wrapped in $...$ or $$...$$ 
-    for better compatibility with Markdown viewers and document export.
+    For math formulas:
+    - If for_docx=True: converts LaTeX math to unicode symbols for DOCX compatibility
+    - If for_docx=False: preserves LaTeX format in $...$ for PDF/ODT (via LibreOffice)
+    
+    Args:
+        latex_content: The LaTeX content to convert
+        for_docx: If True, convert math to unicode for DOCX. If False, preserve LaTeX.
     """
     logger.debug(f"latex_to_markdown input: {repr(latex_content[:200])}")
+    logger.debug(f"for_docx: {for_docx}")
     
     if not latex_content.strip():
         return ""
@@ -47,8 +53,9 @@ def latex_to_markdown(latex_content: str) -> str:
     markdown = _post_process_to_markdown(plain_text)
     logger.debug(f"After post-processing: {repr(markdown[:200])}")
     
-    # Step 5: Restore math formulas in LaTeX format
-    markdown = _restore_math_formulas(markdown, placeholders_info)
+    # Step 5: Restore math formulas
+    # If for_docx, convert LaTeX math to unicode; otherwise preserve LaTeX
+    markdown = _restore_math_formulas(markdown, placeholders_info, for_docx)
     logger.debug(f"Final markdown: {repr(markdown[:200])}")
     
     return markdown
@@ -155,25 +162,50 @@ def _extract_until(latex: str, start_pos: int, end_marker: str) -> Optional[str]
     return None
 
 
-def _restore_math_formulas(text: str, placeholders_info: List[Tuple[str, str, str]]) -> str:
+def _restore_math_formulas(text: str, placeholders_info: List[Tuple[str, str, str]], for_docx: bool = True) -> str:
     """
     Restore math formulas in the converted text.
+    
+    If for_docx is True, convert LaTeX math to unicode symbols.
+    Otherwise, preserve LaTeX format in $...$ or $$...$$.
     """
     # Sort by placeholder length (longest first) to avoid partial replacements
     placeholders_info.sort(key=lambda x: len(x[0]), reverse=True)
     
     for placeholder, math_type, formula in placeholders_info:
-        if math_type == 'display':
-            # Use $$...$$ for display math in Markdown
-            replacement = f'$$\n{formula}\n$$'
+        if for_docx:
+            # Convert LaTeX math to unicode for DOCX compatibility
+            replacement = _latex_math_to_unicode(formula)
         else:
-            # Use $...$ for inline math
-            replacement = f'${formula}$'
+            # Preserve LaTeX format
+            if math_type == 'display':
+                replacement = f'$$\n{formula}\n$$'
+            else:
+                replacement = f'${formula}$'
         text = text.replace(placeholder, replacement)
     
     logger.debug(f"_restore_math_formulas output: {repr(text[:200])}")
     
     return text
+
+
+def _latex_math_to_unicode(math_latex: str) -> str:
+    """
+    Convert LaTeX math formula to unicode symbols.
+    Uses pylatexenc's LatexNodes2Text for conversion.
+    """
+    converter = LatexNodes2Text()
+    try:
+        # Convert the math LaTeX to unicode
+        unicode_text = converter.latex_to_text(math_latex)
+        # Clean up any extra whitespace
+        unicode_text = unicode_text.strip()
+        # Remove any remaining LaTeX commands that weren't converted
+        unicode_text = re.sub(r'\\', '', unicode_text)
+        return unicode_text
+    except Exception:
+        # If conversion fails, return the original
+        return math_latex
 
 
 def _preprocess_latex(latex: str) -> str:
