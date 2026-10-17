@@ -1,6 +1,6 @@
 from __future__ import annotations
 import re
-from typing import Optional
+from typing import Optional, Tuple, Dict, List
 
 from pylatexenc.latex2text import LatexNodes2Text
 
@@ -11,24 +11,95 @@ def latex_to_markdown(latex_content: str) -> str:
 
     Uses pylatexenc to parse LaTeX and convert it to plain text with Markdown formatting.
     Handles common LaTeX constructs like sections, lists, math, and special characters.
+    
+    For math formulas, preserves them in LaTeX format wrapped in $...$ or $$...$$ 
+    for better compatibility with Markdown viewers.
     """
     if not latex_content.strip():
         return ""
 
-    # Step 1: Clean and preprocess LaTeX
-    cleaned_latex = _preprocess_latex(latex_content)
-
-    # Step 2: Use pylatexenc for basic conversion
+    # Step 1: Extract and replace math formulas with placeholders
+    latex_with_placeholders, placeholders_info = _extract_and_replace_math(latex_content)
+    
+    # Step 2: Clean and preprocess LaTeX (without math)
+    cleaned_latex = _preprocess_latex(latex_with_placeholders)
+    
+    # Step 3: Use pylatexenc for basic conversion
     converter = LatexNodes2Text()
     try:
         plain_text = converter.latex_to_text(cleaned_latex)
     except Exception:
         plain_text = _strip_latex_commands(cleaned_latex)
-
-    # Step 3: Post-process to improve Markdown formatting
+    
+    # Step 4: Post-process to improve Markdown formatting
     markdown = _post_process_to_markdown(plain_text)
-
+    
+    # Step 5: Restore math formulas in LaTeX format
+    markdown = _restore_math_formulas(markdown, placeholders_info)
+    
     return markdown
+
+
+def _extract_and_replace_math(latex: str) -> Tuple[str, List[Tuple[str, str, str]]]:
+    """
+    Extract math formulas from LaTeX, replace them with placeholders,
+    and return the modified LaTeX and info about the formulas.
+    
+    Returns (latex_with_placeholders, placeholders_info)
+    where placeholders_info is a list of (placeholder, math_type, formula)
+    """
+    placeholders_info = []
+    
+    # Pattern for display math: $$...$$ or \[...\]
+    display_pattern = r'\$\$(.*?)\$\$|\\[(.*?)\\]'
+    
+    def replace_display(match):
+        idx = len(placeholders_info)
+        if match.group(1):
+            formula = match.group(1)
+        else:
+            formula = match.group(2)
+        placeholder = f'__MATH_DISPLAY_{idx}__'
+        placeholders_info.append((placeholder, 'display', formula))
+        return placeholder
+    
+    latex = re.sub(display_pattern, replace_display, latex)
+    
+    # Pattern for inline math: $...$ or \(...\)
+    inline_pattern = r'\$(.*?)\$|\\((.*?)\\)'
+    
+    def replace_inline(match):
+        idx = len(placeholders_info)
+        if match.group(1):
+            formula = match.group(1)
+        else:
+            formula = match.group(2)
+        placeholder = f'__MATH_INLINE_{idx}__'
+        placeholders_info.append((placeholder, 'inline', formula))
+        return placeholder
+    
+    latex = re.sub(inline_pattern, replace_inline, latex)
+    
+    return latex, placeholders_info
+
+
+def _restore_math_formulas(text: str, placeholders_info: List[Tuple[str, str, str]]) -> str:
+    """
+    Restore math formulas in the converted text.
+    """
+    # Sort by placeholder length (longest first) to avoid partial replacements
+    placeholders_info.sort(key=lambda x: len(x[0]), reverse=True)
+    
+    for placeholder, math_type, formula in placeholders_info:
+        if math_type == 'display':
+            # Use $$...$$ for display math in Markdown
+            replacement = f'$$\n{formula}\n$$'
+        else:
+            # Use $...$ for inline math
+            replacement = f'${formula}$'
+        text = text.replace(placeholder, replacement)
+    
+    return text
 
 
 def _preprocess_latex(latex: str) -> str:
