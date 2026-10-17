@@ -1,13 +1,8 @@
 from __future__ import annotations
 import re
-import logging
 from typing import Optional, Tuple, List
 
 from pylatexenc.latex2text import LatexNodes2Text
-
-# Set up debug logging
-logger = logging.getLogger('latex_to_markdown')
-logger.setLevel(logging.DEBUG)
 
 
 def latex_to_markdown(latex_content: str, for_docx: bool = True) -> str:
@@ -25,38 +20,28 @@ def latex_to_markdown(latex_content: str, for_docx: bool = True) -> str:
         latex_content: The LaTeX content to convert
         for_docx: If True, convert math to unicode for DOCX. If False, preserve LaTeX.
     """
-    logger.debug(f"latex_to_markdown input: {repr(latex_content[:200])}")
-    logger.debug(f"for_docx: {for_docx}")
-    
     if not latex_content.strip():
         return ""
 
     # Step 1: Extract and replace math formulas with placeholders BEFORE pylatexenc sees them
     latex_with_placeholders, placeholders_info = _extract_and_replace_math(latex_content)
-    logger.debug(f"After math extraction: {repr(latex_with_placeholders[:200])}")
-    logger.debug(f"Placeholders info: {placeholders_info}")
     
     # Step 2: Clean and preprocess LaTeX (without math formulas)
     cleaned_latex = _preprocess_latex(latex_with_placeholders)
-    logger.debug(f"After preprocessing: {repr(cleaned_latex[:200])}")
     
     # Step 3: Use pylatexenc for basic conversion (math is now protected)
     converter = LatexNodes2Text()
     try:
         plain_text = converter.latex_to_text(cleaned_latex)
-        logger.debug(f"After pylatexenc: {repr(plain_text[:200])}")
-    except Exception as e:
-        logger.debug(f"pylatexenc failed: {e}")
+    except Exception:
         plain_text = _strip_latex_commands(cleaned_latex)
     
     # Step 4: Post-process to improve Markdown formatting
     markdown = _post_process_to_markdown(plain_text)
-    logger.debug(f"After post-processing: {repr(markdown[:200])}")
     
     # Step 5: Restore math formulas
     # If for_docx, convert LaTeX math to unicode; otherwise preserve LaTeX
     markdown = _restore_math_formulas(markdown, placeholders_info, for_docx)
-    logger.debug(f"Final markdown: {repr(markdown[:200])}")
     
     return markdown
 
@@ -76,8 +61,6 @@ def _extract_and_replace_math(latex: str) -> Tuple[str, List[Tuple[str, str, str
     Returns (latex_with_placeholders, placeholders_info)
     where placeholders_info is a list of (placeholder, math_type, formula)
     """
-    logger.debug(f"_extract_and_replace_math input: {repr(latex[:200])}")
-    
     placeholders_info = []
     result = []
     i = 0
@@ -115,9 +98,6 @@ def _extract_and_replace_math(latex: str) -> Tuple[str, List[Tuple[str, str, str
         
         result.append(latex[i])
         i += 1
-    
-    logger.debug(f"_extract_and_replace_math output: {repr(''.join(result)[:200])}")
-    logger.debug(f"Placeholders: {placeholders_info}")
     
     return ''.join(result), placeholders_info
 
@@ -183,8 +163,6 @@ def _restore_math_formulas(text: str, placeholders_info: List[Tuple[str, str, st
             else:
                 replacement = f'${formula}$'
         text = text.replace(placeholder, replacement)
-    
-    logger.debug(f"_restore_math_formulas output: {repr(text[:200])}")
     
     return text
 
