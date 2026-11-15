@@ -54,6 +54,7 @@ def _export_to_docx(ast: Document, settings: ExportSettings) -> BytesIO:
     exporter = ExportToDocx(settings=settings)
     exporter.export(ast)
     exporter.doc.save(buffer)
+    print(f"[DEBUG] docx saved: {buffer.getbuffer().nbytes} bytes")
     buffer.seek(0)
     return buffer
 
