@@ -85,6 +85,7 @@ def convert():
             extension = uploaded.filename.rsplit('.', 1)[-1].lower()
             if extension in DOCUMENT_EXTENSIONS:
                 markdown_text = extract_markdown_from_docx(uploaded.read(), settings)
+                print(f"[DEBUG] input: {len(markdown_text)} chars: {markdown_text[:80]!r}")
                 if not markdown_text.strip():
                     return render_template('index.html', error='The uploaded document is empty.'), 400
                 buffer = _convert_markdown(markdown_text, settings, output_format)
@@ -137,6 +138,7 @@ def resource_path(relative: str) -> Path:
 def _convert_markdown(markdown_text: str, settings: ExportSettings, output_format: str):
     parser = MarkdownParser()
     ast = parser.parse(markdown_text)
+    print(f"[DEBUG] AST: {len(ast.children)} blocks: {[type(n).__name__ for n in ast.children]}")
     return export_document(ast, settings, output_format)
 
 

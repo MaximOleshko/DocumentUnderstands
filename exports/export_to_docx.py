@@ -224,6 +224,7 @@ class ExportToDocx:
         italic: bool = False,
         in_table: bool = False,
     ):
+        print(f"[DEBUG] inline nodes: {[type(n).__name__ for n in inline_nodes]} bold={bold} italic={italic}")
         effective_bold = bold and not self.settings.strip_bold
         effective_italic = italic and not self.settings.strip_italic
 
